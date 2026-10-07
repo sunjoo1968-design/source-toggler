@@ -1,0 +1,16 @@
+.local/
+.agents/
+.codex/
+docs/.pdca-status.json
+.pdca-status.json
+release/
+dist/
+build/
+scripts/camera-mix-settings-import.json
+tests/*.png
+tests/*.log
+tests/native-mix-log.txt
+vendor/source-switcher-0.4.4/
+vendor/*.zip
+*.pdb
+__pycache__/
