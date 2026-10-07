@@ -1,6 +1,6 @@
 -- Camera MIX Controller 1.3.3 / Author: SunjooAn / Source Switcher required for ME1
 local obs = obslua
-local VERSION, AUTHOR = '1.3.3', 'SunjooAn'
+local VERSION, AUTHOR = '1.3.4', 'SunjooAn'
 local MAX_ME, MAX_CAM = 8, 16
 local banks, hotkeys, callbacks = {}, {}, {}
 local me_count, linked_pending = 1, nil
@@ -1110,6 +1110,7 @@ function script_update(settings)
         script_settings = settings
     end
     local new_count = math.max(1, math.min(MAX_ME, obs.obs_data_get_int(settings, 'me_count')))
+    local previous_count = me_count
     local changed = new_count ~= me_count
     me_count = new_count
     legacy_manager_name = obs.obs_data_get_string(settings, 'group_manager')
@@ -1137,7 +1138,19 @@ function script_update(settings)
         linked_pending = nil
         for _, b in ipairs(banks) do b.pending, b.commit = nil, nil end
     end
-    if loaded then sync_hotkeys() end
+    if loaded then
+        for n = new_count + 1, previous_count do
+            release_engine(banks[n])
+            banks[n].locked_until = 0
+            banks[n].restore_pending = true
+        end
+        for n = previous_count + 1, new_count do
+            banks[n].locked_until = 0
+            banks[n].restore_pending = true
+        end
+        if new_count ~= previous_count then restore_due = 0 end
+        sync_hotkeys()
+    end
 end
 local function save_hotkey(name, id, settings)
     local array = obs.obs_hotkey_save(id)

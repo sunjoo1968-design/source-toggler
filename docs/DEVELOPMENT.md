@@ -1,11 +1,12 @@
 # 개발 및 검증
 
-Camera MIX Controller **1.3.3** · 제작자 **SunjooAn**.
+Camera MIX Controller **1.3.4** · 제작자 **SunjooAn**.
 
 Windows/OBS 32.2.2 환경에서 Python으로 실행합니다.
 
 ```powershell
 python tests/run-tests.py
+python tests/run-tests.py tests/memory-stress.lua
 ```
 
 OBS 설치 폴더의 LuaJIT DLL을 사용합니다. 모의 테스트는 방송 OBS를 변경하지 않습니다. 그룹/주 입력 교체, 배치·추가 장식, CUT/MIX, 큐, 글로벌 이름, 재시작과 지연 로드, 설정 가져오기, 단축키, 참조 해제를 검증합니다.

@@ -341,5 +341,5 @@ local migrated={duration=100}; script_defaults(migrated)
 assert(migrated.duration==455 and migrated.controller_settings_migrated)
 migrated.duration=320; script_defaults(migrated); assert(migrated.duration==320 and data_refs==0)
 script_path=nil
-assert(script_description():find('SunjooAn') and script_description():find('1.3.3'))
+assert(script_description():find('SunjooAn') and script_description():find('1.3.4'))
 print('PASS Controller: stable slots, primary replacement, decorations/transforms, MIX/CUT, queued switching, editing visibility, hotkeys, data ownership')
