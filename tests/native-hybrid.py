@@ -11,8 +11,9 @@ probe='''    module = P()
     duplicate = api('obs_source_duplicate', P, P, C.c_char_p, C.c_bool)
     get_by_uuid = api('obs_get_source_by_uuid', P, C.c_char_p)
     found = get_by_uuid(uuid(fade)); assert found == fade; release(found)
-    def hybrid(name, live, target):
+    def hybrid(name, live, target, duration=300):
         data = create_data(); set_string(data, b'live_uuid', uuid(live)); set_string(data,b'snapshot_uuid',uuid(target))
+        api('obs_data_set_int',None,P,C.c_char_p,C.c_longlong)(data,b'mix_duration_ms',duration)
         result = create(b'camera_mix_hybrid_output', name.encode(), data, None)
         release_data(data); assert result; extra_sources.append(result); return result
     # ME1 clone shows a complete scene, even after the original selection changes.
@@ -73,6 +74,39 @@ probe='''    module = P()
     after = allocations()
     assert after == before, (before, after)
     print('PASS Hybrid copy lifetime: 500 clones, allocations', before, '->', after)
+    # TAKE during a MIX retains its current contribution and finishes independently.
+    mix_a=color('Take Red',1280,720,0xff0000ff); mix_b=color('Take Green',1280,720,0xff00ff00)
+    extra_sources.extend([mix_a,mix_b])
+    live_mix=api('obs_source_create_private',P,C.c_char_p,C.c_char_p,P)(b'fade_transition',b'Take Live MIX',None)
+    extra_sources.append(live_mix); transition_set(live_mix,mix_a)
+    take_output=hybrid('Take MIX Output',live_mix,mix_b,2000)
+    api('obs_set_output_source',None,C.c_uint32,P)(0,take_output)
+    assert start_transition(live_mix,0,2000,mix_b); time.sleep(.45)
+    take_copy=duplicate(take_output,b'Take Mid MIX',True); assert take_copy; extra_sources.append(take_copy)
+    transition_set(live_mix,mix_a) # Preview now differs from captured Program.
+    api('obs_set_output_source',None,C.c_uint32,P)(0,take_copy); time.sleep(.08)
+    first=snapshot('take-mid-mix-first.png').getpixel((600,400))[:3]
+    assert first[2]>30 and first[1]>30,first
+    time.sleep(.45)
+    second=snapshot('take-mid-mix-next.png').getpixel((600,400))[:3]
+    assert second[1]>first[1]+20 and second[2]<first[2]-20,(first,second)
+    take_again=duplicate(take_copy,b'Take Mid MIX Again',True); assert take_again; extra_sources.append(take_again)
+    api('obs_set_output_source',None,C.c_uint32,P)(0,take_again); time.sleep(2.1)
+    last=snapshot('take-mid-mix-completed.png').getpixel((600,400))[:3]
+    assert last[2]<5 and last[1]>245,last
+    completed_copy=duplicate(take_again,b'Take Completed MIX Again',True); assert completed_copy; extra_sources.append(completed_copy)
+    api('obs_set_output_source',None,C.c_uint32,P)(0,completed_copy); time.sleep(.15)
+    assert snapshot('take-completed-copy.png').getpixel((600,400))[1]>245
+    transition_set(live_mix,mix_a); assert start_transition(live_mix,1,2000,mix_b)
+    manual_time(live_mix,.5); time.sleep(.2)
+    api('obs_wait_for_destroy_queue',C.c_bool)(); mixed_baseline=allocations()
+    for _ in range(100):
+        temporary=duplicate(take_output,b'Mid MIX Stress',True); assert temporary; release(temporary)
+        api('obs_wait_for_destroy_queue',C.c_bool)()
+    time.sleep(.2); api('obs_wait_for_destroy_queue',C.c_bool)(); mixed_final=allocations()
+    assert mixed_final==mixed_baseline,(mixed_baseline,mixed_final)
+    print('PASS MIX-copy lifetime: 100 active-blend copies, allocations',mixed_baseline,'->',mixed_final)
+    print('PASS MIX TAKE: captured blend advances independently, clone-of-clone and completed-copy stay live')
 '''
 at=code.index(marker)
 code=code[:at]+probe+code[at:]

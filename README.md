@@ -1,8 +1,8 @@
 # Sunjoo OBS Link Controller
 
-제작자 **SunjooAn** · 버전 **0.1.1** · Windows x64 / OBS 32.2.2
+제작자 **SunjooAn** · 버전 **0.1.2** · Windows x64 / OBS 32.2.2
 
-Lua 설정·단축키와 네이티브 복제 출력 플러그인을 함께 사용하는 주력 컨트롤러입니다. Sunjoo OBS Link Multiview 0.5.3 및 Tally 1.6.0-obs.5와 함께 검증했습니다.
+Lua 설정·단축키와 네이티브 복제 출력 플러그인을 함께 사용하는 주력 컨트롤러입니다. Sunjoo OBS Link Multiview 0.5.4 및 Tally 1.6.0-obs.6와 함께 검증했습니다.
 
 ## 설치와 사용
 1. 방송이 없는 시간에 OBS를 종료합니다.
@@ -18,7 +18,7 @@ Lua 설정·단축키와 네이티브 복제 출력 플러그인을 함께 사�
 ## OBS 소스 복제
 스튜디오 모드에서 장면 복제·소스 복제를 켜고 Preview에 출력 장면을 선택합니다. 카메라를 정한 뒤 OBS 전환 버튼으로 TAKE하면 PGM의 선택·배치를 유지하고 Preview에서 다음 카메라를 준비할 수 있습니다.
 
-Lua의 CUT/MIX는 Preview 카메라 출력에 적용되며, TAKE의 타입·시간은 OBS 장면 전환 설정을 따릅니다. 카메라 MIX 중 TAKE는 도착 카메라의 완성 배치를 복제하므로 MIX 완료 후 TAKE하세요. 영상 자체를 정지 이미지로 저장하는 기능은 아닙니다.
+Lua의 CUT/MIX는 Preview 카메라 출력에 적용되며, TAKE의 타입·시간은 OBS 장면 전환 설정을 따릅니다. 카메라 MIX 중 TAKE하면 실제 A/B 입력·혼합 비율·배치를 복제하고 남은 MIX를 PGM에서 독립적으로 끝까지 진행합니다. Preview 변경은 이미 복제된 PGM을 바꾸지 않습니다. 영상 자체를 정지 이미지로 저장하는 기능은 아닙니다.
 
 ## 검증·빌드·보관
 [통합 검증](docs/04-report/obs-link-suite.md) · [Controller 검증](docs/04-report/obs-link-controller.md) · [개발 안내](docs/DEVELOPMENT.md)

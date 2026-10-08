@@ -1,6 +1,6 @@
 # Sunjoo OBS Link Controller 개발·검증
 
-SunjooAn · 0.1.1. scripts/camera-mix-hybrid.lua가 버전의 단일 정의입니다.
+SunjooAn · 0.1.2. scripts/camera-mix-hybrid.lua가 버전의 단일 정의입니다.
 
 공식 OBS SDK/import libraries와 Visual Studio 2022 C++ Build Tools, CMake 3.28+를 준비한 뒤 scripts/build-hybrid.ps1 -ObsSourceDir <SDK> -ObsImportDir <imports>로 빌드합니다. 정리된 생성물·SDK는 다시 준비해야 합니다.
 

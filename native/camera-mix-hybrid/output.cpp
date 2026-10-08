@@ -3,9 +3,11 @@
 #include <mutex>
 #include <cstring>
 #include <algorithm>
+#include <util/platform.h>
 
 OBS_DECLARE_MODULE()
 MODULE_EXPORT const char *obs_module_version(void) { return HYBRID_VERSION; }
+MODULE_EXPORT uint32_t sunjoo_obs_link_contract(void) { return 2; }
 MODULE_EXPORT const char *obs_module_name(void) { return "Sunjoo OBS Link Controller " HYBRID_VERSION; }
 MODULE_EXPORT const char *obs_module_description(void) { return "Sunjoo OBS Link Controller clone-safe output / SunjooAn / " HYBRID_VERSION; }
 MODULE_EXPORT const char *obs_module_author(void) { return "SunjooAn"; }
@@ -15,7 +17,78 @@ struct Output {
     std::mutex mutex;
     obs_source_t *child = nullptr;
     bool frozen;
+    bool continuing = false;
+    float capturedTime = 0.0f;
+    uint64_t capturedAt = 0;
+    uint32_t duration = 300;
 };
+static obs_source_t *duplicate_camera(obs_source_t *target)
+{
+    if (obs_source_get_type(target) == OBS_SOURCE_TYPE_TRANSITION) {
+        auto *active = obs_transition_get_active_source(target);
+        auto *result = active ? duplicate_camera(active) : nullptr;
+        obs_source_release(active);
+        return result;
+    }
+    auto *copy = obs_source_duplicate(target, obs_source_get_name(target), true);
+    if (copy && copy != target) {
+        auto *meta = obs_source_get_private_settings(copy);
+        auto *origin = obs_source_get_private_settings(target);
+        const char *uuid = obs_data_get_string(origin, "camera_mix_hybrid_original_uuid");
+        obs_data_set_string(meta, "camera_mix_hybrid_original_uuid", *uuid ? uuid : obs_source_get_uuid(target));
+        obs_data_release(origin); obs_data_release(meta);
+    }
+    return copy;
+}
+static obs_source_t *active_fade(obs_source_t *source)
+{
+    if (!source) return nullptr;
+    if (obs_source_get_type(source) == OBS_SOURCE_TYPE_TRANSITION &&
+        !strcmp(obs_source_get_unversioned_id(source), "fade_transition")) return obs_source_get_ref(source);
+    obs_source_t *result = nullptr;
+    obs_source_enum_active_sources(source, [](obs_source_t *, obs_source_t *child, void *data) {
+        auto **result = static_cast<obs_source_t **>(data);
+        if (!*result && obs_source_get_type(child) == OBS_SOURCE_TYPE_TRANSITION &&
+            !strcmp(obs_source_get_unversioned_id(child), "fade_transition")) *result = obs_source_get_ref(child);
+    }, &result);
+    return result;
+}
+static obs_source_t *copy_mix(Output *output, obs_source_t *source)
+{
+    auto *fade = active_fade(source);
+    if (!fade) return nullptr;
+    auto *a = obs_transition_get_source(fade, OBS_TRANSITION_SOURCE_A);
+    auto *b = obs_transition_get_source(fade, OBS_TRANSITION_SOURCE_B);
+    const float time = obs_transition_get_time(fade);
+    auto *checkA = obs_transition_get_source(fade, OBS_TRANSITION_SOURCE_A);
+    auto *checkB = obs_transition_get_source(fade, OBS_TRANSITION_SOURCE_B);
+    const bool stable = a && b && a != b && a == checkA && b == checkB && time >= 0.0f && time < 1.0f;
+    obs_source_release(checkA); obs_source_release(checkB);
+    obs_source_t *copy = nullptr;
+    if (stable) {
+        auto *copyA = duplicate_camera(a);
+        auto *copyB = duplicate_camera(b);
+        if (copyA && copyB) {
+            copy = obs_source_create_private("fade_transition", "Sunjoo OBS Link Frozen MIX", nullptr);
+            if (copy) {
+                uint32_t width, height; obs_transition_get_size(fade, &width, &height);
+                obs_transition_set_size(copy, width, height);
+                obs_transition_set_alignment(copy, obs_transition_get_alignment(fade));
+                obs_transition_set_scale_type(copy, obs_transition_get_scale_type(fade));
+                obs_transition_set(copy, copyA);
+                if (obs_transition_start(copy, OBS_TRANSITION_MODE_MANUAL, output->duration, copyB)) {
+                    obs_transition_set_manual_torque(copy, 0.0f, 0.0f);
+                    // OBS treats exactly zero as a manual-transition cancel.
+                    obs_transition_set_manual_time(copy, std::max(time, 0.000001f));
+                    output->continuing = true; output->capturedTime = time; output->capturedAt = os_gettime_ns();
+                } else { obs_source_release(copy); copy = nullptr; }
+            }
+        }
+        obs_source_release(copyA); obs_source_release(copyB);
+    }
+    obs_source_release(a); obs_source_release(b); obs_source_release(fade);
+    return copy;
+}
 static obs_source_t *acquire(Output *output)
 {
     std::lock_guard<std::mutex> lock(output->mutex);
@@ -51,20 +124,17 @@ static void update(void *opaque, obs_data_t *settings)
 static void *create(obs_data_t *settings, obs_source_t *source)
 {
     auto *output = new Output{source, {}, nullptr, obs_obj_is_private(source)};
+    const auto duration = obs_data_get_int(settings, "mix_duration_ms");
+    output->duration = duration > 0 ? uint32_t(std::clamp<int64_t>(duration, 50, 5000)) : 300;
     auto *live = obs_get_source_by_uuid(obs_data_get_string(settings, "live_uuid"));
     if (output->frozen) {
         auto *target = obs_get_source_by_uuid(obs_data_get_string(settings, "frozen_uuid"));
         if (!target) target = obs_get_source_by_uuid(obs_data_get_string(settings, "snapshot_uuid"));
         if (target) {
-            auto *copy = obs_source_duplicate(target, obs_source_get_name(target), true);
+            auto *copy = copy_mix(output, *obs_data_get_string(settings, "frozen_uuid") ? target : live);
+            if (!copy) copy = duplicate_camera(target);
             if (copy) {
                 obs_data_set_string(settings, "frozen_uuid", obs_source_get_uuid(copy));
-                auto *meta = obs_source_get_private_settings(copy);
-                auto *origin = obs_source_get_private_settings(target);
-                const char *original = obs_data_get_string(origin, "camera_mix_hybrid_original_uuid");
-                obs_data_set_string(meta, "camera_mix_hybrid_original_uuid", *original ? original : obs_source_get_uuid(target));
-                obs_data_release(origin);
-                obs_data_release(meta);
             }
             // create runs under OBS's source registry lock. Initial activation
             // is propagated by enum_active_sources when the parent is shown.
@@ -75,6 +145,17 @@ static void *create(obs_data_t *settings, obs_source_t *source)
         obs_source_release(live);
     } else output->child = live;
     return output;
+}
+static void tick(void *opaque, float)
+{
+    auto *output = static_cast<Output *>(opaque);
+    if (!output->continuing) return;
+    auto *child = acquire(output);
+    const float progress = std::min(1.0f, output->capturedTime +
+        float(double(os_gettime_ns() - output->capturedAt) / (double(output->duration) * 1000000.0)));
+    if (child) obs_transition_set_manual_time(child, progress);
+    if (progress >= 1.0f) output->continuing = false;
+    obs_source_release(child);
 }
 static void destroy(void *opaque)
 {
@@ -137,6 +218,7 @@ MODULE_EXPORT bool obs_module_load(void)
     info.get_height = [](void *data) { return dimension(data, true); };
     info.enum_active_sources = enumerate; info.enum_all_sources = enumerate;
     info.audio_render = audio; info.get_properties = properties;
+    info.video_tick = tick;
     obs_register_source(&info);
     return true;
 }

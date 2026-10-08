@@ -39,6 +39,8 @@ if ($PrepareTestRuntime) {
     New-Item -ItemType Directory -Force "$hybridSandbox/bin", "$hybridSandbox/obs-plugins/64bit", "$hybridSandbox/data/obs-plugins" | Out-Null
     Copy-Item -LiteralPath "$ObsInstallDir/bin/64bit" -Destination "$hybridSandbox/bin" -Recurse -Force
     Copy-Item -LiteralPath "$ObsInstallDir/data/obs-studio" -Destination "$hybridSandbox/data" -Recurse -Force
+    Copy-Item -LiteralPath "$ObsInstallDir/data/libobs" -Destination "$hybridSandbox/data" -Recurse -Force
+    Copy-Item -LiteralPath "$ObsInstallDir/data/obs-scripting" -Destination "$hybridSandbox/data" -Recurse -Force
     foreach ($hybridPlugin in @('obs-websocket','obs-transitions','rtmp-services','obs-x264','obs-ffmpeg','obs-outputs','frontend-tools','image-source','source-switcher','obs-filters','obs-text')) {
         Copy-Item -LiteralPath "$ObsInstallDir/obs-plugins/64bit/$hybridPlugin.dll" -Destination "$hybridSandbox/obs-plugins/64bit" -Force
         if (Test-Path -LiteralPath "$ObsInstallDir/data/obs-plugins/$hybridPlugin") {

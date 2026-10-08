@@ -1,6 +1,6 @@
 -- Sunjoo OBS Link Controller / SunjooAn / Source Switcher and camera-mix-hybrid required
 local obs = obslua
-local VERSION, AUTHOR = '0.1.1', 'SunjooAn'
+local VERSION, AUTHOR = '0.1.2', 'SunjooAn'
 local MAX_ME, MAX_CAM = 8, 16
 local banks, hotkeys, callbacks = {}, {}, {}
 local me_count, linked_pending = 1, nil
@@ -231,6 +231,7 @@ local function hybrid_source(b, live, snapshot)
     local data = obs.obs_data_create()
     obs.obs_data_set_int(data, 'camera_mix_hybrid_bank', b.number)
     obs.obs_data_set_string(data, 'live_uuid', obs.obs_source_get_uuid(live))
+    obs.obs_data_set_int(data, 'mix_duration_ms', b.duration)
     if snapshot then obs.obs_data_set_string(data, 'snapshot_uuid', obs.obs_source_get_uuid(snapshot)) end
     if source then obs.obs_source_update(source, data)
     else source = obs.obs_source_create('camera_mix_hybrid_output', name, data, nil) end
@@ -415,6 +416,7 @@ local function hybrid_snapshot(b, index)
     if target then
         local data = obs.obs_source_get_settings(wrapper)
         obs.obs_data_set_string(data, 'snapshot_uuid', obs.obs_source_get_uuid(target))
+        obs.obs_data_set_int(data, 'mix_duration_ms', b.duration)
         obs.obs_source_update(wrapper, data); obs.obs_data_release(data)
         obs.obs_source_release(target)
     end
