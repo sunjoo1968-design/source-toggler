@@ -23,3 +23,5 @@
 native/camera-mix-hybrid/output.cpp frozen create가 target(source snapshot/frozen UUID)을 obs_source_duplicate 하고 원본 UUID metadata를 기록한다. live는 ME1 Source Switcher 또는 ME2 private Fade이며 초기 create는 registry lock 아래이므로 active-child 재귀 호출을 피해야 한다. 기존 shutdown 수정·PGM private identity 판정을 유지한다.
 
 최종 검증 모두 통과. 사용자 확정: 남은 MIX를 독립 완료. 배포 ZIP 및 GitHub 새 릴리스 게시·해시 검증 진행 중.
+
+완료(2026-10-08): Controller 0.1.2 / Multiview 0.5.4 / Tally 1.6.0-obs.6의 소스 및 릴리스 게시 완료. 모든 GitHub asset digest를 로컬 SHA256과 대조하여 일치 확인. 공개/공개/비공개 유지. 게시 기록은 release/GITHUB-PUBLISHED.json, 파일 해시는 release/OBS-LINK-RELEASES.json에 기록. 자동 재개 확인 중지.
