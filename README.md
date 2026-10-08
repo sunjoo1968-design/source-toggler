@@ -1,43 +1,30 @@
 # Sunjoo OBS Link Controller
 
-제작자 **SunjooAn** · 현재 버전 **0.1.1**. [통합 버전 안내](docs/OBS_LINK_SUITE.md).
+제작자 **SunjooAn** · 버전 **0.1.1** · Windows x64 / OBS 32.2.2
 
-# Camera MIX Controller 1.3.4
+Lua 설정·단축키와 네이티브 복제 출력 플러그인을 함께 사용하는 주력 컨트롤러입니다. Sunjoo OBS Link Multiview 0.5.3 및 Tally 1.6.0-obs.5와 함께 검증했습니다.
 
-**제작자: SunjooAn · 버전: 1.3.4**
+## 설치와 사용
+1. 방송이 없는 시간에 OBS를 종료합니다.
+2. ZIP의 obs-plugins 폴더를 OBS 설치 폴더에 합칩니다. DLL 파일명 camera-mix-hybrid.dll은 호환성을 위해 유지합니다.
+3. ME1 제어에는 Exeldro Source Switcher 0.4.4가 필요합니다. 외부 플러그인은 이 ZIP에 포함하지 않습니다.
+4. OBS 도구 → 스크립트에서 scripts/camera-mix-hybrid.lua를 등록합니다. OBS 등록 이름과 설명은 Sunjoo OBS Link Controller입니다.
+5. ME1에는 카메라 장면, ME2 이후에는 소스 또는 장면을 선택합니다. ME2의 카메라별 그룹에서 배치를 편집합니다.
+6. 글로벌 옵션에서 ME 이름과 공통 CUT/MIX·시간을 지정합니다. 기본은 CUT, MIX 시간은 300ms입니다.
+7. 설정 완료 / 전체 적용으로 출력과 입력 그룹을 만듭니다. 이 버튼은 카메라 1로 전환합니다. 반복 적용과 주 입력 교체는 그룹 배치·추가 자막을 유지합니다.
 
-OBS에서 카메라 장면과 그룹을 방송용 CUT/MIX로 전환하는 Lua 스크립트입니다.
+기본 출력 이름은 Hybrid ME1 PGM Output, Hybrid ME2 SUB Output입니다. 이름은 글로벌 옵션에서 변경할 수 있습니다. 고정 자막은 출력 위에 배치합니다. 재시작 시 마지막 카메라와 설정을 복원합니다.
 
-- ME1: 기존 카메라 장면을 전환하며 장면 안의 자막·장식을 유지합니다.
-- ME2~ME8: 원본 소스/장면을 카메라별 그룹에 배치하고, 배치가 포함된 두 화면을 하나의 OBS Fade로 혼합합니다.
-- 글로벌 ME 이름/출력·입력 이름/공통 타입·시간. 기본 CUT, MIX 시간 300ms.
-- 그룹 자체와 내부 항목의 위치/크기/자르기를 반영합니다. 내부 MIX 화면은 공개 장면 목록에 추가하지 않습니다.
-- 입력 변경·반복 전체 적용은 같은 그룹의 주 입력만 교체하며 배치·추가 항목을 유지합니다.
-- ME별/전체 카메라 제어와 독립 단축키 옵션을 제공합니다.
-- OBS 재시작 시 마지막 카메라와 설정을 복원하고 장면 로드가 늦으면 재시도합니다.
-- 사용 ME 수를 줄이면 비활성 ME의 전환 자원을 해제하고, 다시 늘리면 기존 선택·배치·자막을 유지하며 복원합니다.
-- 제작자와 버전을 스크립트 설명 및 설정창에 함께 표시합니다.
+## OBS 소스 복제
+스튜디오 모드에서 장면 복제·소스 복제를 켜고 Preview에 출력 장면을 선택합니다. 카메라를 정한 뒤 OBS 전환 버튼으로 TAKE하면 PGM의 선택·배치를 유지하고 Preview에서 다음 카메라를 준비할 수 있습니다.
 
-## 설치
+Lua의 CUT/MIX는 Preview 카메라 출력에 적용되며, TAKE의 타입·시간은 OBS 장면 전환 설정을 따릅니다. 카메라 MIX 중 TAKE는 도착 카메라의 완성 배치를 복제하므로 MIX 완료 후 TAKE하세요. 영상 자체를 정지 이미지로 저장하는 기능은 아닙니다.
 
-검증 환경: Windows x64 / OBS Studio 32.2.2. ME1에는 [Exeldro Source Switcher](https://github.com/exeldro/obs-source-switcher/releases) 플러그인이 필요합니다(검증 버전 0.4.4). 이 프로젝트의 설치 ZIP에는 외부 플러그인이나 OBS DLL을 포함하지 않습니다.
+## 검증·빌드·보관
+[통합 검증](docs/04-report/obs-link-suite.md) · [Controller 검증](docs/04-report/obs-link-controller.md) · [개발 안내](docs/DEVELOPMENT.md)
 
-1. 배포 ZIP의 data 폴더를 OBS 설치 폴더에 복사하거나 scripts/camera-mix-controller.lua를 원하는 폴더에 저장합니다.
-2. OBS → 도구 → 스크립트 → +로 camera-mix-controller.lua를 추가합니다.
-3. 카메라·화면 설정을 열고 사용할 ME 수와 입력을 선택합니다. ME1은 장면, ME2 이후는 소스 또는 장면을 선택합니다.
-4. 설정 완료 / 전체 적용을 누릅니다. 이 버튼은 카메라1로 전환합니다.
-5. ME1 PGM Output / ME2 SUB Output 등의 출력 장면을 실제 방송 장면에 연결합니다. 고정 자막은 MIX 출력 위에 배치합니다.
+기존 비 Hybrid 1.3.4는 로컬 archive/pre-obs-link에 보관했고 지난 실행 코드·모의 테스트는 현재 소스에서 정리했습니다. 현장 설치본과 개인 설정은 유지합니다. 이전 GitHub 릴리스와 Git 이력은 삭제하지 않습니다.
 
-업데이트는 Lua를 교체하고 스크립트를 새로고침합니다. 파일명을 바꾸는 이전 버전 이행 시 기존 두 등록 항목을 제거하고 현재 파일을 추가하세요. 개인 설정 가져오기 파일은 공개 배포에 포함하지 않습니다. 재시작 후에는 전체 적용을 다시 누를 필요가 없습니다.
+공식 OBS 32.2.2 SDK와 import libraries, CMake 3.28+, Visual Studio 2022 C++ Build Tools로 scripts/build-hybrid.ps1을 실행합니다. 빌드 캐시는 정리했으므로 재빌드 시 SDK를 다시 준비하세요.
 
-[자세한 사용법](docs/broadcast-mix-guide.md) · [글로벌 옵션](docs/global-options-guide.md) · [개발 및 검증](docs/DEVELOPMENT.md) · [변경 기록](CHANGELOG.md)
-
-## 저장소 구성
-
-- scripts/: 주력 컨트롤러 하나.
-- tests/: OBS LuaJIT 모의 회귀와 별도 libobs/D3D11 픽셀 검증.
-- vendor/: 읽기 검증에 사용한 외부 공식 소스와 해당 라이선스. 스크립트에 포함해 컴파일하지 않습니다.
-- .local/: 개인 설정·개발 이력·검증 결과(비공개, Git 제외).
-- release/: 버전별 설치 ZIP(로컬 생성, Git 제외).
-
-외부 탈리 연동은 별도 후속 작업입니다. 현재 배포가 외부 탈리 허브/리스너를 수정하지 않습니다.
+GPL-2.0-or-later. OBS 및 Exeldro Source Switcher의 제작자·라이선스는 vendor와 NOTICES.md에 유지합니다. 실제 현장 장시간 운용은 별도로 확인하세요.
