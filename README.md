@@ -1,3 +1,7 @@
+# Sunjoo OBS Link Controller
+
+제작자 **SunjooAn** · 현재 버전 **0.1.1**. [통합 버전 안내](docs/OBS_LINK_SUITE.md).
+
 # Camera MIX Controller 1.3.4
 
 **제작자: SunjooAn · 버전: 1.3.4**
