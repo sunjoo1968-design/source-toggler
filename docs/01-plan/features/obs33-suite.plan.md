@@ -15,3 +15,5 @@
 보존: 현장 OBS/허브 자동 종료·교체 금지. firmware/UDP/vMix/ATEM 불변. 기존 릴리스는 삭제하지 않는다. 사용자 .gitignore/LOCAL-RESUME/3D 작업 제외. 제작자·외부 라이선스 유지.
 
 진행: 공식 변경·소스 조사 완료. OBS 33 플러그인 로딩 개편, 스튜디오 모드 그룹 복제 수정, Qt 최소 6.10 변경 확인. 신규 개발 브랜치와 Legacy manifest 준비 중.
+
+완료: 네 OBS33 RC1 prerelease 게시·원격 해시 검증 완료. docs/04-report/obs33-suite.md 참조. Legacy stable main과 기존 릴리스·현장 설치 보존.
