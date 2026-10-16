@@ -2,7 +2,8 @@ param(
  [Parameter(Mandatory=$true)][string]$ObsPath,
  [Parameter(Mandatory=$true)][string]$ObsSourceDir,
  [string]$QtPath = '',
- [switch]$BuildHub
+ [switch]$BuildHub,
+ [switch]$SourceSwitcher
 )
 $ErrorActionPreference='Stop'
 $linkRoot=Split-Path $PSScriptRoot -Parent
@@ -23,7 +24,8 @@ foreach($linkModule in @('obs','obs-frontend-api')){
  & "$linkTools/lib.exe" /nologo "/def:$linkImports/$linkModule.def" /machine:x64 "/out:$linkImports/$linkModule.lib"
  if($LASTEXITCODE -ne 0){throw 'Import library failed'}
 }
-if(Test-Path "$linkRoot/scripts/camera-mix-hybrid.lua"){$linkSource="$linkRoot/native/camera-mix-hybrid";$linkBuild="$linkRoot/.local/obs33/controller-build"}
+if($SourceSwitcher){$linkSource="$linkRoot/native/source-switcher-obs33";$linkBuild="$linkRoot/.local/obs33/source-switcher-build"}
+elseif(Test-Path "$linkRoot/scripts/camera-mix-hybrid.lua"){$linkSource="$linkRoot/native/camera-mix-hybrid";$linkBuild="$linkRoot/.local/obs33/controller-build"}
 elseif(Test-Path "$linkRoot/source/hub/package.json"){$linkSource="$linkRoot/source/obs-tally-bridge";$linkBuild="$linkRoot/.build-tools/obs33-bridge"}
 elseif(Test-Path "$linkRoot/buildspec.json"){$linkSource="$linkRoot/cmake/obs33";$linkBuild="$linkRoot/build-obs33"}
 else{$linkSource=$linkRoot;$linkBuild="$linkRoot/build-obs33"}

@@ -1,0 +1,10 @@
+{
+  "version": "0.4.4-sunjoo.obs33.1",
+  "upstream": "https://github.com/exeldro/obs-source-switcher",
+  "upstream_tag": "0.4.4",
+  "upstream_commit": "593be4bb54c27d6e378693b98dafe904f04c46dc",
+  "upstream_zip_sha256": "a838bc58544043375f76638dbdcc62ca696e921fec8b9b87f2f4f7209f1727cf",
+  "original_author": "Exeldro",
+  "rebuild_author": "SunjooAn",
+  "obs": "33.0.0-rc1"
+}
