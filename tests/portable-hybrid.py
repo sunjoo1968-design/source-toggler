@@ -1,8 +1,8 @@
 """Run only our separate portable OBS: real Lua setup, restart, and normal shutdown."""
 from pathlib import Path
-import json, subprocess, time, sys
+import json, subprocess, time, sys, os
 root=Path(__file__).resolve().parents[1]
-sandbox=root/'.local/hybrid/obs-shutdown-sandbox'
+sandbox=Path(os.environ.get('OBS_TEST_ROOT',str(root/'.local/hybrid/obs-shutdown-sandbox'))).resolve()
 exe=sandbox/'bin/64bit/obs64.exe'
 assert exe.exists(), 'Prepare isolated OBS test runtime first'
 cfg=sandbox/'config/obs-studio'

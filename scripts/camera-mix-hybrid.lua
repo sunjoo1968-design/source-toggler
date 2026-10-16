@@ -1,6 +1,6 @@
 -- Sunjoo OBS Link Controller / SunjooAn / Source Switcher and camera-mix-hybrid required
 local obs = obslua
-local VERSION, AUTHOR = '0.1.2', 'SunjooAn'
+local VERSION, AUTHOR = '0.2.0', 'SunjooAn'
 local MAX_ME, MAX_CAM = 8, 16
 local banks, hotkeys, callbacks = {}, {}, {}
 local me_count, linked_pending = 1, nil
@@ -14,6 +14,13 @@ local restore_outputs
 local synchronize_groups, migrate_managers
 local ANCHOR_NAME = 'Camera MIX Transparent Canvas'
 local function key(n, name) return n == 1 and name or 'me' .. n .. '_' .. name end
+local function create_main_scene(name)
+    local canvas = obs.obs_get_main_canvas()
+    if canvas == nil then return nil end
+    local scene = obs.obs_canvas_scene_create(canvas, name)
+    obs.obs_canvas_release(canvas)
+    return scene
+end
 local function now_ms() return obs.os_gettime_ns() / 1000000 end
 local function controller_flag(data, role)
     -- Read previous hidden metadata while writing only the controller namespace.
@@ -149,7 +156,7 @@ local function ensure_layouts(b)
         local existing = obs.obs_get_source_by_name(scene_name)
         local scene, count, found
         if existing ~= nil then scene, count, found = scene_info(existing, name)
-        else scene = obs.obs_scene_create(scene_name) end
+        else scene = create_main_scene(scene_name) end
         if scene == nil then
             if existing ~= nil then obs.obs_source_release(existing) end
             log(b, '배치 장면 생성 실패: ' .. scene_name); return false
@@ -367,7 +374,7 @@ local function create_scene(b)
         if existing ~= nil then obs.obs_source_release(existing) end
         return false
     end
-    if scene == nil then scene = obs.obs_scene_create(b.scene) end
+    if scene == nil then scene = create_main_scene(b.scene) end
     if scene == nil then log(b, '출력 장면 생성 실패'); return false end
     if not connected then
         local source = output_source(b)
@@ -698,7 +705,7 @@ local function convert_groups(b)
         obs.obs_data_release(data)
         if not manager or not owned then obs.obs_source_release(source); log(b, '입력 장면 이름 충돌'); return false end
     else
-        manager = obs.obs_scene_create(b.manager)
+        manager = create_main_scene(b.manager)
         if not manager then return false end
         local data = obs.obs_data_create()
         obs.obs_data_set_bool(data, 'camera_mix_hybrid_manager', true)
