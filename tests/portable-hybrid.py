@@ -9,7 +9,13 @@ cfg=sandbox/'config/obs-studio'
 def put(name,content):
     p=cfg/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(content,encoding='utf-8')
 driver=root/'.local/hybrid/lua-integration.lua'
-driver.write_text((root/'scripts/camera-mix-hybrid.lua').read_text(encoding='utf-8')+'\n'+(root/'tests/fixtures/hybrid-smoke.lua').read_text(encoding='utf-8-sig'),encoding='utf-8')
+current_driver=(root/'scripts/camera-mix-hybrid.lua').read_text(encoding='utf-8')+'\n'+(root/'tests/fixtures/hybrid-smoke.lua').read_text(encoding='utf-8-sig')
+baseline_script=os.environ.get('OBS_TEST_BASELINE_SCRIPT')
+baseline_fixture=os.environ.get('OBS_TEST_BASELINE_FIXTURE')
+initial_driver=current_driver
+if baseline_script and baseline_fixture:
+    initial_driver=Path(baseline_script).read_text(encoding='utf-8-sig')+'\n'+Path(baseline_fixture).read_text(encoding='utf-8-sig')
+driver.write_text(initial_driver,encoding='utf-8')
 ini='[General]\nFirstRun=true\nLanguage=en-US\n[Basic]\nProfile=HybridTest\nProfileDir=HybridTest\nSceneCollection=HybridTest\nSceneCollectionFile=HybridTest\n[BasicWindow]\nWarnBeforeExit=false\nPreviewEnabled=true\nSceneDuplicationMode=true\nEditPropertiesMode=true\n'
 put('global.ini',ini);put('user.ini',ini)
 put('basic/profiles/HybridTest/basic.ini','[General]\nName=HybridTest\n[Video]\nBaseCX=1280\nBaseCY=720\nOutputCX=1280\nOutputCY=720\nFPSCommon=30\n[Output]\nMode=Simple\n')
@@ -20,6 +26,7 @@ for i in (1,2):
     sources.append({'name':f'Test Scene {i}','id':'scene','settings':{'items':[{'name':f'Test Camera {i}','id':i,'visible':True,'pos':{'x':0,'y':0},'scale':{'x':1,'y':1},'rot':0,'align':5}]}})
 put('basic/scenes/HybridTest.json',json.dumps({'name':'HybridTest','current_scene':'Test Scene 1','current_program_scene':'Test Scene 1','scene_order':[{'name':'Test Scene 1'},{'name':'Test Scene 2'}],'sources':sources,'transition_duration':300,'modules':{'scripts-tool':[{'path':str(driver).replace('\\','/'),'settings':{}}]}}))
 for cycle,expected in ((1,'CREATED'),(2,'RESTORED')):
+    if cycle == 2: driver.write_text(current_driver,encoding='utf-8')
     marker=driver.parent/'lua-smoke-ok.txt';marker.unlink(missing_ok=True)
     child=subprocess.Popen([str(exe),'--portable','--multi','--disable-updater','--disable-missing-files-check','--profile','HybridTest','--collection','HybridTest'],cwd=exe.parent,creationflags=subprocess.CREATE_NO_WINDOW)
     try:

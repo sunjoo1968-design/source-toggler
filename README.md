@@ -1,3 +1,5 @@
+> Controller 0.2.1 / SunjooAn / OBS 33: [2026-10-26 UI 정리·설치 안내](docs/CONTROLLER-UI-20261026.md). 아래 이전 배포 정보는 변경 이력입니다.
+
 > **OBS 33 RC1 시험판**: [새 설치 및 호환 안내](docs/OBS33.md). 이전 배포는 OBS 32 Legacy로 보존합니다. 제작자 SunjooAn · 0.2.0
 
 # Sunjoo OBS Link Controller

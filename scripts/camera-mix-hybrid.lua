@@ -1,6 +1,6 @@
 -- Sunjoo OBS Link Controller / SunjooAn / Source Switcher and camera-mix-hybrid required
 local obs = obslua
-local VERSION, AUTHOR = '0.2.0', 'SunjooAn'
+local VERSION, AUTHOR = '0.2.1', 'SunjooAn'
 local MAX_ME, MAX_CAM = 8, 16
 local banks, hotkeys, callbacks = {}, {}, {}
 local me_count, linked_pending = 1, nil
@@ -226,13 +226,45 @@ local function copy_transform(from, to)
     obs.obs_sceneitem_set_blending_mode(to, obs.obs_sceneitem_get_blending_mode(from))
     obs.obs_sceneitem_set_blending_method(to, obs.obs_sceneitem_get_blending_method(from))
 end
+local function copy_output(b)
+    local name = b.label .. ' Copy Output'
+    local source = obs.obs_get_source_by_name(name)
+    if source then
+        local data = obs.obs_source_get_settings(source)
+        local owned = obs.obs_source_get_unversioned_id(source) == 'camera_mix_hybrid_output'
+            and obs.obs_data_get_int(data, 'camera_mix_hybrid_bank') == b.number
+        obs.obs_data_release(data)
+        if owned then return source end
+        obs.obs_source_release(source)
+        return nil
+    end
+    for _, old_name in ipairs({b.label .. ' Hybrid Copy Output', 'Hybrid ' .. b.label .. ' Hybrid Copy Output'}) do
+        source = obs.obs_get_source_by_name(old_name)
+        if source then
+            local data = obs.obs_source_get_settings(source)
+            local owned = obs.obs_source_get_unversioned_id(source) == 'camera_mix_hybrid_output'
+                and obs.obs_data_get_int(data, 'camera_mix_hybrid_bank') == b.number
+            obs.obs_data_release(data)
+            if owned then obs.obs_source_set_name(source, name); return source end
+            obs.obs_source_release(source)
+        end
+    end
+    return nil
+end
 local function hybrid_source(b, live, snapshot)
     if not obs.obs_source_get_display_name('camera_mix_hybrid_output') then
         log(b, 'Sunjoo OBS Link Controller 출력 플러그인을 설치한 뒤 사용하세요.'); return nil
     end
-    local name = b.label .. ' Hybrid Copy Output'
-    local source = obs.obs_get_source_by_name(name)
-    if source and obs.obs_source_get_unversioned_id(source) ~= 'camera_mix_hybrid_output' then
+    local name = b.label .. ' Copy Output'
+    local source = obs.obs_get_source_by_name(name) or copy_output(b)
+    local owned = true
+    if source then
+        local saved = obs.obs_source_get_settings(source)
+        owned = obs.obs_source_get_unversioned_id(source) == 'camera_mix_hybrid_output'
+            and obs.obs_data_get_int(saved, 'camera_mix_hybrid_bank') == b.number
+        obs.obs_data_release(saved)
+    end
+    if source and not owned then
         obs.obs_source_release(source); log(b, '복제 출력 이름이 다른 소스와 충돌합니다: ' .. name); return nil
     end
     local data = obs.obs_data_create()
@@ -415,7 +447,7 @@ local function prepared_source(b, index)
 end
 
 local function hybrid_snapshot(b, index)
-    local wrapper = obs.obs_get_source_by_name(b.label .. ' Hybrid Copy Output')
+    local wrapper = copy_output(b)
     if not wrapper then return end
     local target
     if b.number == 1 then target = obs.obs_get_source_by_name(b.cameras[index] or '')
@@ -962,41 +994,6 @@ local function refresh_options(props)
     for n = 1, me_count do status[#status + 1] = 'ME' .. n .. ': ' .. (ready(banks[n]) and '준비됨' or '설정 필요') end
     obs.obs_property_set_description(obs.obs_properties_get(props, 'status'), table.concat(status, ' / '))
 end
-local function edit_layout(b)
-    if not obs.obs_frontend_preview_program_mode_active() then
-        log(b, '배치 편집은 OBS 스튜디오 모드를 켠 뒤 실행하세요. 미리보기에서 편집할 수 있습니다.'); return false
-    end
-    local index = obs.obs_data_get_int(script_settings, key(b.number, 'edit_camera'))
-    local name = input_names(b)[index]
-    if b.number == 1 then
-        local scene = name ~= nil and obs.obs_get_source_by_name(name) or nil
-        if scene == nil then log(b, '먼저 카메라 장면을 선택해 적용하세요.'); return false end
-        if obs.obs_scene_from_source(scene) == nil then obs.obs_source_release(scene); log(b, 'ME1의 입력을 카메라 장면으로 다시 적용하세요.'); return false end
-        obs.obs_frontend_set_current_preview_scene(scene)
-        obs.obs_source_release(scene)
-        return true
-    end
-    local source = obs.obs_get_source_by_name(b.manager)
-    local manager = source ~= nil and obs.obs_scene_from_source(source) or nil
-    if manager == nil then
-        if source ~= nil then obs.obs_source_release(source) end
-        log(b, '먼저 설정 완료 / 전체 적용을 실행하세요.'); return false
-    end
-    local chosen = name ~= nil and obs.obs_scene_get_group(manager, name) or nil
-    if chosen == nil then obs.obs_source_release(source); log(b, '이 카메라의 배치를 먼저 적용하세요.'); return false end
-    local items = obs.obs_scene_enum_items(manager)
-    if items ~= nil then
-        for _, item in ipairs(items) do
-            local selected = obs.obs_source_get_name(obs.obs_sceneitem_get_source(item)) == name
-            -- Selecting an item for editing never changes broadcast visibility.
-            obs.obs_sceneitem_select(item, selected)
-        end
-        obs.sceneitem_list_release(items)
-    end
-    obs.obs_frontend_set_current_preview_scene(source)
-    obs.obs_source_release(source)
-    return true
-end
 local function apply_group_position(b) return true end
 
 local function visibility(props, _, settings)
@@ -1021,14 +1018,10 @@ local function visibility(props, _, settings)
         obs.obs_property_set_visible(obs.obs_properties_get(props, name), advanced)
     end
     obs.obs_property_set_visible(obs.obs_properties_get(props, 'expert_settings'), false)
-    obs.obs_property_set_visible(obs.obs_properties_get(props, 'common'), target == 0)
     local target_prop = obs.obs_properties_get(props, 'control_target')
     obs.obs_property_list_clear(target_prop)
-    obs.obs_property_list_add_int(target_prop, '전체 ME 연동', 0)
+    obs.obs_property_list_add_int(target_prop, '전체 ME (단축키 사용)', 0)
     for n = 1, count do obs.obs_property_list_add_int(target_prop, obs.obs_data_get_string(settings, 'me_label_' .. n) .. '만 전환', n) end
-    local common_count = MAX_CAM
-    for n = 1, count do common_count = math.min(common_count, #read_array(settings, key(n, 'cameras'))) end
-    for i = 1, MAX_CAM do obs.obs_property_set_visible(obs.obs_properties_get(props, 'camera_' .. i), i <= common_count) end
     for n = 1, MAX_ME do
         local chosen = n == selected
         local camera_count = #read_array(settings, key(n, 'cameras'))
@@ -1055,7 +1048,7 @@ function script_properties()
     obs.obs_properties_add_text(props, 'credits', AUTHOR .. ' | Sunjoo OBS Link Controller v' .. VERSION, obs.OBS_TEXT_INFO)
     local global = obs.obs_properties_create()
     for n = 1, MAX_ME do
-        obs.obs_properties_add_text(global, 'me_label_' .. n, 'Hybrid ME' .. n .. ' 이름', obs.OBS_TEXT_DEFAULT)
+        obs.obs_properties_add_text(global, 'me_label_' .. n, 'ME' .. n .. ' 이름', obs.OBS_TEXT_DEFAULT)
         obs.obs_properties_add_text(global, 'output_name_' .. n, 'ME' .. n .. ' 출력 장면 이름 (비우면 자동)', obs.OBS_TEXT_DEFAULT)
         obs.obs_properties_add_text(global, 'input_name_' .. n, 'ME' .. n .. ' 입력 장면 이름 (비우면 자동)', obs.OBS_TEXT_DEFAULT)
     end
@@ -1081,14 +1074,6 @@ function script_properties()
     obs.obs_property_set_modified_callback(selector, visibility)
     local count = obs.obs_properties_add_int(props, 'me_count', '사용할 ME 개수 (1~8)', 1, MAX_ME, 1)
     obs.obs_property_set_modified_callback(count, visibility)
-    local common = obs.obs_properties_create()
-    obs.obs_properties_add_button(common, 'all_cut', '전체 ME: CUT 모드', function() set_mode('CUT'); return false end)
-    obs.obs_properties_add_button(common, 'all_mix', '전체 ME: MIX 모드', function() set_mode('MIX'); return false end)
-    for i = 1, MAX_CAM do
-        local index = i
-        obs.obs_properties_add_button(common, 'camera_' .. i, '연동 카메라 ' .. i, function() linked_request(index); return false end)
-    end
-    obs.obs_properties_add_group(props, 'common', '전체 ME 연동 선택', obs.OBS_GROUP_NORMAL, common)
     for n = 1, MAX_ME do
         local number = n
         local p = obs.obs_properties_create()
@@ -1097,10 +1082,8 @@ function script_properties()
         for i = 1, MAX_CAM do
             obs.obs_properties_add_list(p, key(n, 'pick_' .. i), '카메라 ' .. i .. (n == 1 and ' → 전환할 장면' or ' → 그룹에 넣을 소스 / 장면'), obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
         end
-        obs.obs_properties_add_int(p, key(n, 'edit_camera'), '배치 편집할 카메라 번호', 1, MAX_CAM, 1)
-        obs.obs_properties_add_button(p, key(n, 'edit_layout'), n == 1 and '선택 카메라 장면 열기 (미리보기)' or '선택 카메라 그룹 열기 (미리보기)', function() edit_layout(banks[number]); return false end)
         obs.obs_properties_add_button(p, key(n, 'group_position'), '그룹 전체 위치를 출력에 적용', function() apply_group_position(banks[number]); return false end)
-        local help = n == 1 and '기존 장면의 자막·장식을 포함해 전환합니다.' or '그룹 자체 또는 안의 항목을 이동·크기 조정하세요. 바로 반영됩니다.\n배치 편집 버튼은 표시 상태를 바꾸지 않습니다. 현재 선택 카메라가 보입니다.\n이 입력 장면은 방송 출력과 공유됩니다. 배치는 방송 전에 조정하세요.'
+        local help = n == 1 and '기존 장면의 자막·장식을 포함해 전환합니다.' or '그룹 자체 또는 안의 항목을 이동·크기 조정하세요. 바로 반영됩니다.\n입력 관리 장면에서 편집할 카메라 그룹을 직접 선택하세요.\n이 입력 장면은 방송 출력과 공유됩니다. 배치는 방송 전에 조정하세요.'
         obs.obs_properties_add_text(p, key(n, 'edit_help'), help, obs.OBS_TEXT_INFO)
         obs.obs_properties_add_text(p, key(n, 'manager'), '이 ME의 입력 관리 장면 이름', obs.OBS_TEXT_DEFAULT)
         obs.obs_properties_add_text(p, key(n, 'output'), '출력 소스 이름', obs.OBS_TEXT_DEFAULT)
@@ -1144,18 +1127,17 @@ function script_defaults(settings)
     obs.obs_data_set_default_int(settings, 'control_target', 0)
     obs.obs_data_set_default_string(settings, 'anchor_name', 'Camera MIX Transparent Canvas')
     obs.obs_data_set_default_bool(settings, 'independent_hotkeys', false)
-    obs.obs_data_set_default_string(settings, 'group_manager', 'Hybrid Camera Inputs')
+    obs.obs_data_set_default_string(settings, 'group_manager', 'Camera Inputs')
     for n = 1, MAX_ME do
-        obs.obs_data_set_default_string(settings, 'me_label_' .. n, 'Hybrid ME' .. n)
+        obs.obs_data_set_default_string(settings, 'me_label_' .. n, 'ME' .. n)
         obs.obs_data_set_default_string(settings, 'output_name_' .. n, '')
         obs.obs_data_set_default_string(settings, 'input_name_' .. n, '')
         -- Existing configured sources are resolved before new defaults replace old defaults.
-        obs.obs_data_set_default_string(settings, key(n, 'manager'), 'Hybrid ME' .. n .. ' Camera Inputs')
-        obs.obs_data_set_default_string(settings, key(n, 'output'), n == 1 and 'Hybrid ME1 PGM Camera MIX' or 'Hybrid ME' .. n .. ' Camera Inputs')
-        obs.obs_data_set_default_string(settings, key(n, 'scene'), 'Hybrid ME' .. n .. (n == 1 and ' PGM Output' or ' SUB Output'))
+        obs.obs_data_set_default_string(settings, key(n, 'manager'), 'ME' .. n .. ' Camera Inputs')
+        obs.obs_data_set_default_string(settings, key(n, 'output'), n == 1 and 'ME1 PGM Camera MIX' or 'ME' .. n .. ' Camera Inputs')
+        obs.obs_data_set_default_string(settings, key(n, 'scene'), 'ME' .. n .. (n == 1 and ' PGM Output' or ' SUB Output'))
         obs.obs_data_set_default_string(settings, key(n, 'mode'), 'CUT')
         obs.obs_data_set_default_int(settings, key(n, 'duration'), 300)
-        obs.obs_data_set_default_int(settings, key(n, 'edit_camera'), 1)
         -- 2.0 used wrap=true as a default, which may not be stored as a user value.
         -- Preserve already configured raw-camera banks on first upgrade; new banks
         -- remain direct/reuse mode. An explicit saved checkbox always wins.
@@ -1169,8 +1151,8 @@ function script_defaults(settings)
             if source ~= nil then obs.obs_source_release(source) end
         end
         obs.obs_data_set_default_bool(settings, key(n, 'wrap'), legacy_wrap and not all_scenes)
-        obs.obs_data_set_default_string(settings, key(n, 'prefix'), 'Hybrid ME' .. n .. '-CAM')
-        obs.obs_data_set_default_string(settings, key(n, 'group_prefix'), 'Hybrid ME' .. n .. '-CAM')
+        obs.obs_data_set_default_string(settings, key(n, 'prefix'), 'ME' .. n .. '-CAM')
+        obs.obs_data_set_default_string(settings, key(n, 'group_prefix'), 'ME' .. n .. '-CAM')
         local defaults = existing
         for i = 1, MAX_CAM do
             local name = defaults[i] or ''
