@@ -23,7 +23,24 @@ function script_load(settings)
             restore_due=0; restore_outputs()
         end
         assert(banks[2].selected == 2 and not banks[2].restore_pending, 'Hybrid restore/selection failed')
-        local source = obs.obs_get_source_by_name('Hybrid ME2 SUB Output')
+        local props = script_properties()
+        assert(not obs.obs_properties_get(props, 'common'), 'Linked UI group still present')
+        for n = 1, 2 do
+            assert(not obs.obs_properties_get(props, key(n, 'edit_camera')), 'Edit number UI still present')
+            assert(not obs.obs_properties_get(props, key(n, 'edit_layout')), 'Edit button UI still present')
+        end
+        obs.obs_properties_destroy(props)
+        assert(hotkeys.camera_1 and hotkeys.camera_2 and hotkeys.mode_cut and hotkeys.mode_mix, 'Linked hotkeys removed')
+        local wrapper = copy_output(banks[1]); assert(wrapper)
+        local old_uuid = obs.obs_source_get_uuid(wrapper)
+        obs.obs_source_set_name(wrapper, banks[1].label .. ' Hybrid Copy Output')
+        obs.obs_source_release(wrapper)
+        wrapper = copy_output(banks[1]); assert(wrapper)
+        assert(obs.obs_source_get_uuid(wrapper) == old_uuid, 'Legacy output was duplicated')
+        assert(obs.obs_source_get_name(wrapper) == banks[1].label .. ' Copy Output', 'Legacy visible suffix not cleaned')
+        obs.obs_source_release(wrapper)
+
+        local source = obs.obs_get_source_by_name(banks[2].scene)
         assert(source)
         local items = obs.obs_scene_enum_items(obs.obs_scene_from_source(source))
         local count = 0

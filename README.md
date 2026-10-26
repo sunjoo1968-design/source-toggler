@@ -1,3 +1,5 @@
+> Controller 0.1.3 / SunjooAn / OBS 32: [2026-10-26 UI 정리·설치 안내](docs/CONTROLLER-UI-20261026.md). 아래 이전 배포 정보는 변경 이력입니다.
+
 # Sunjoo OBS Link Controller
 
 제작자 **SunjooAn** · 버전 **0.1.2** · Windows x64 / OBS 32.2.2

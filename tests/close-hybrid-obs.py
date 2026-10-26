@@ -2,9 +2,11 @@
 import ctypes as C
 from ctypes import wintypes as W
 from pathlib import Path
-import sys
+import sys, os
 pid=int(sys.argv[1]); expected=Path(sys.argv[2]).resolve()
-assert expected == (Path(__file__).resolve().parents[1] / '.local/hybrid/obs-shutdown-sandbox/bin/64bit/obs64.exe').resolve()
+test_root=Path(os.environ.get('OBS_TEST_ROOT',str(Path(__file__).resolve().parents[1]/'.local/hybrid/obs-shutdown-sandbox'))).resolve()
+assert expected == (test_root/'bin/64bit/obs64.exe').resolve()
+assert test_root.is_relative_to(Path(__file__).resolve().parents[1]/'.local')
 k=C.WinDLL('kernel32',use_last_error=True); u=C.WinDLL('user32',use_last_error=True)
 k.OpenProcess.restype=W.HANDLE; k.OpenProcess.argtypes=[W.DWORD,W.BOOL,W.DWORD]
 h=k.OpenProcess(0x1000,False,pid); assert h
